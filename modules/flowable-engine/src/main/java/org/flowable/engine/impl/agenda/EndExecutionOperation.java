@@ -35,6 +35,7 @@ import org.flowable.common.engine.impl.util.CollectionUtil;
 import org.flowable.engine.delegate.ExecutionListener;
 import org.flowable.engine.delegate.event.impl.FlowableEventBuilder;
 import org.flowable.engine.impl.bpmn.behavior.MultiInstanceActivityBehavior;
+import org.flowable.engine.impl.bpmn.behavior.ParallelMultiInstanceBehavior;
 import org.flowable.engine.impl.bpmn.helper.ScopeUtil;
 import org.flowable.engine.impl.cfg.ProcessEngineConfigurationImpl;
 import org.flowable.engine.impl.delegate.ActivityBehavior;
@@ -197,8 +198,8 @@ public class EndExecutionOperation extends AbstractOperation {
         LOGGER.debug("Parent execution found. Continuing process using execution {}", parentExecution.getId());
 
         // When ending an execution in a multi instance subprocess , special care is needed
-        if (isEndEventInMultiInstanceSubprocess(execution)) {
-            handleMultiInstanceSubProcess(executionEntityManager, parentExecution);
+        if (isEndEventOrImpliedEndEventInMultiInstanceSubprocess(execution)) {
+            handleMultiInstanceSubProcess(executionEntityManager, parentExecution, execution);
             return;
         }
 
@@ -388,7 +389,19 @@ public class EndExecutionOperation extends AbstractOperation {
         return executionToContinue;
     }
 
-    protected void handleMultiInstanceSubProcess(ExecutionEntityManager executionEntityManager, ExecutionEntity parentExecution) {
+    protected void handleMultiInstanceSubProcess(ExecutionEntityManager executionEntityManager,
+            ExecutionEntity parentExecution, ExecutionEntity currentExecution) {
+
+        // Special case: will be handled by the ParallelMultiInstanceWithNoWaitStateCompletionJobHandler asynchronously
+        Object subProcessBehavior = currentExecution.getCurrentFlowElement().getSubProcess().getBehavior();
+        if (subProcessBehavior instanceof ParallelMultiInstanceBehavior) {
+            ParallelMultiInstanceBehavior parallelMultiInstanceBehavior = (ParallelMultiInstanceBehavior) subProcessBehavior;
+            if (parallelMultiInstanceBehavior.isAsyncWithoutWaitStates(CommandContextUtil.getProcessEngineConfiguration())) {
+                parallelMultiInstanceBehavior.leave(currentExecution);
+                return;
+            }
+        }
+
         List<ExecutionEntity> activeChildExecutions = getActiveChildExecutionsForExecution(executionEntityManager, parentExecution.getId());
         boolean containsOtherChildExecutions = false;
         for (ExecutionEntity activeExecution : activeChildExecutions) {
@@ -411,13 +424,23 @@ public class EndExecutionOperation extends AbstractOperation {
         }
     }
 
-    protected boolean isEndEventInMultiInstanceSubprocess(ExecutionEntity executionEntity) {
-        if (executionEntity.getCurrentFlowElement() instanceof EndEvent) {
-            SubProcess subProcess = ((EndEvent) execution.getCurrentFlowElement()).getSubProcess();
+    protected boolean isEndEventOrImpliedEndEventInMultiInstanceSubprocess(ExecutionEntity executionEntity) {
+        FlowElement currentFlowElement = executionEntity.getCurrentFlowElement();
+        if (currentFlowElement instanceof EndEvent || isFlowNodeWithoutOutgoingSequenceFlow(currentFlowElement)) {
+            SubProcess subProcess = execution.getCurrentFlowElement().getSubProcess();
             return !executionEntity.getParent().isProcessInstanceType()
                     && subProcess != null
                     && subProcess.getLoopCharacteristics() != null
                     && subProcess.getBehavior() instanceof MultiInstanceActivityBehavior;
+
+        }
+        return false;
+    }
+
+    protected boolean isFlowNodeWithoutOutgoingSequenceFlow(FlowElement flowElement) {
+        if (flowElement instanceof FlowNode) {
+            FlowNode flowNode = (FlowNode) flowElement;
+            return flowNode.getOutgoingFlows() == null || flowNode.getOutgoingFlows().isEmpty();
         }
         return false;
     }

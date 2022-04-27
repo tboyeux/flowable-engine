@@ -33,10 +33,12 @@ public interface CaseInstanceQuery extends Query<CaseInstanceQuery, CaseInstance
     CaseInstanceQuery caseInstanceId(String caseInstanceId);
     CaseInstanceQuery caseInstanceIds(Set<String> caseInstanceIds);
     CaseInstanceQuery caseInstanceBusinessKey(String caseInstanceBusinessKey);
+    CaseInstanceQuery caseInstanceBusinessStatus(String caseInstanceBusinessStatus);
     CaseInstanceQuery caseInstanceParentId(String parentId);
     CaseInstanceQuery caseInstanceStartedBefore(Date beforeTime);
     CaseInstanceQuery caseInstanceStartedAfter(Date afterTime);
     CaseInstanceQuery caseInstanceStartedBy(String userId);
+    CaseInstanceQuery caseInstanceState(String state);
     CaseInstanceQuery caseInstanceLastReactivatedBefore(Date beforeTime);
     CaseInstanceQuery caseInstanceLastReactivatedAfter(Date afterTime);
     CaseInstanceQuery caseInstanceLastReactivatedBy(String userId);
@@ -235,6 +237,15 @@ public interface CaseInstanceQuery extends Query<CaseInstanceQuery, CaseInstance
     @Deprecated
     CaseInstanceQuery limitCaseInstanceVariables(Integer caseInstanceVariablesLimit);
 
+    /**
+     * Localize case name to specified locale.
+     */
+    CaseInstanceQuery locale(String locale);
+
+    /**
+     * Instruct localization to fallback to more general locales including the default locale of the JVM if the specified locale is not found.
+     */
+    CaseInstanceQuery withLocalizationFallback();
 
     CaseInstanceQuery orderByCaseInstanceId();
     CaseInstanceQuery orderByCaseDefinitionKey();

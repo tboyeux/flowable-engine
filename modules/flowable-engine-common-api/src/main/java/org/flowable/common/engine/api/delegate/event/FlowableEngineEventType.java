@@ -347,6 +347,29 @@ public enum FlowableEngineEventType implements FlowableEventType {
      * The event is dispatched after the associated {@link #ENTITY_INITIALIZED} and the variables have been set.
      */
     CASE_STARTED,
+
+    /**
+     * A case instance has been ended by either completing or terminating it.
+     * The event is being dispatched after the lifecycle listeners have been invoked, but before the end state will be set on the case instance.
+     */
+    CASE_ENDED,
+
+    /**
+     * A stage instance (plan item) has been started (went into active state, not to be confused with the creation of the stage plan item).
+     * The event is being dispatched after the lifecycle listeners have been invoked.
+     */
+    STAGE_STARTED,
+
+    /**
+     * A stage instance (plan item) has been ended (either through completion, manual termination or an exit).
+     * The event is being dispatched after the lifecycle listeners have been invoked.
+     */
+    STAGE_ENDED,
+
+    /**
+     * A change tenant id was executed.
+     */
+    CHANGE_TENANT_ID,
     ;
 
     public static final FlowableEngineEventType[] EMPTY_ARRAY = new FlowableEngineEventType[] {};

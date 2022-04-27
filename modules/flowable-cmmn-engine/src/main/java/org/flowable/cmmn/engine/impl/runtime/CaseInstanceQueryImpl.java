@@ -50,6 +50,7 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
     protected String caseDefinitionName;
     protected Integer caseDefinitionVersion;
     protected String businessKey;
+    protected String businessStatus;
     protected String caseInstanceId;
     protected Set<String> caseInstanceIds;
     protected String caseInstanceParentId;
@@ -57,6 +58,7 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
     protected Date startedBefore;
     protected Date startedAfter;
     protected String startedBy;
+    protected String state;
     protected Date lastReactivatedBefore;
     protected Date lastReactivatedAfter;
     protected String lastReactivatedBy;
@@ -80,6 +82,9 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
     protected List<CaseInstanceQueryImpl> orQueryObjects = new ArrayList<>();
     protected CaseInstanceQueryImpl currentOrQueryObject;
     protected boolean inOrStatement;
+
+    protected String locale;
+    protected boolean withLocalizationFallback;
 
     public CaseInstanceQueryImpl() {
     }
@@ -211,6 +216,19 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
         }
         return this;
     }
+    
+    @Override
+    public CaseInstanceQueryImpl caseInstanceBusinessStatus(String businessStatus) {
+        if (businessStatus == null) {
+            throw new FlowableIllegalArgumentException("Business status is null");
+        }
+        if (inOrStatement) {
+            this.currentOrQueryObject.businessStatus = businessStatus;
+        } else {
+            this.businessStatus = businessStatus;
+        }
+        return this;
+    }
 
     @Override
     public CaseInstanceQueryImpl caseDefinitionKeys(Set<String> caseDefinitionKeys) {
@@ -274,6 +292,19 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
             this.currentOrQueryObject.startedBy = userId;
         } else {
             this.startedBy = userId;
+        }
+        return this;
+    }
+    
+    @Override
+    public CaseInstanceQueryImpl caseInstanceState(String state) {
+        if (state == null) {
+            throw new FlowableIllegalArgumentException("state is null");
+        }
+        if (inOrStatement) {
+            this.currentOrQueryObject.state = state;
+        } else {
+            this.state = state;
         }
         return this;
     }
@@ -704,6 +735,18 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
         return this;
     }
 
+    @Override
+    public CaseInstanceQuery locale(String locale) {
+        this.locale = locale;
+        return this;
+    }
+
+    @Override
+    public CaseInstanceQuery withLocalizationFallback() {
+        this.withLocalizationFallback = true;
+        return this;
+    }
+
     // results ////////////////////////////////////////////////////
 
     @Override
@@ -715,10 +758,20 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
     @Override
     public List<CaseInstance> executeList(CommandContext commandContext) {
         ensureVariablesInitialized();
+        List<CaseInstance> caseInstances = null;
         if (this.isIncludeCaseVariables()) {
-            return cmmnEngineConfiguration.getCaseInstanceEntityManager().findWithVariablesByCriteria(this);
+            caseInstances = cmmnEngineConfiguration.getCaseInstanceEntityManager().findWithVariablesByCriteria(this);
+        } else {
+            caseInstances = cmmnEngineConfiguration.getCaseInstanceEntityManager().findByCriteria(this);
         }
-        return cmmnEngineConfiguration.getCaseInstanceEntityManager().findByCriteria(this);
+
+        if (cmmnEngineConfiguration.getCaseLocalizationManager() != null) {
+            for (CaseInstance caseInstance : caseInstances) {
+                cmmnEngineConfiguration.getCaseLocalizationManager().localize(caseInstance, locale, withLocalizationFallback);
+            }
+        }
+
+        return caseInstances;
     }
 
     @Override
@@ -766,6 +819,22 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
         return businessKey;
     }
 
+    public String getBusinessStatus() {
+        return businessStatus;
+    }
+
+    public Date getLastReactivatedBefore() {
+        return lastReactivatedBefore;
+    }
+
+    public Date getLastReactivatedAfter() {
+        return lastReactivatedAfter;
+    }
+
+    public String getLastReactivatedBy() {
+        return lastReactivatedBy;
+    }
+
     public String getExecutionId() {
         return caseInstanceId;
     }
@@ -800,6 +869,10 @@ public class CaseInstanceQueryImpl extends AbstractVariableQueryImpl<CaseInstanc
 
     public String getStartedBy() {
         return startedBy;
+    }
+
+    public String getState() {
+        return state;
     }
 
     public String getCallbackId() {
